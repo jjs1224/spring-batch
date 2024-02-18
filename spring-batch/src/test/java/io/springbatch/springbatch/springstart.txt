@@ -1,0 +1,90 @@
+-------스프링 배치-------
+Spring batch
+배치 핵심패턴
+1. Read - database, file , queue 다량의 데이터 조회
+2. Process - 특정방법으로 데이터 가공
+3. Write - data를 수정된 양식으로 다시 저장
+배치 시나리오
+1. 배치프로세스 주기적 커밋
+2. 동시 다발적인 job의 배치처리. 대용량 병렬처리(여러개의 thread)
+3. 실패후 수동 또는 스케줄링에 의한 재시작
+4. 의존관계가 있는 step여러개 순차적처리(기본 배치모델)
+5. 조건적 flow구성을 통한 체계적으로 유연한 배치 모델 구성
+6. 반복, 재시도 ,skip처리(예외에따라 재시도 skip)
+
+- 배치 아키텍처
+
+Application : 스프링배치 프레임워크를 통해 모든 배치 job과 커스텀 코드 포함. 업무로직구현에만 집중. 공통적인 기반기술은 프레임윅이 담당.
+Batch core : batch 실행, 모니터링, 관리 api로 구성. JobLanuncher, Job, Step, Flow 등이 속함.
+  -> Job 명세서
+Batch Infrastructure: application, core 모두 infrastructure위에서 빌드. Job실행의 흐름과 처리를 위한 틀 제공. Reader, Processor writer, Skip, Retry 등이 속함.
+
+- 프로젝트 구성 및 의존성 설정
+>> 설정
+pom.xml 
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-batch</artifactId>
+</dependency>
+---oracle 설치
+1) docker 설치
+-colima start --memory 4 --arch x86_64
+-docker ps
+-docker run --restart unless-stopped --name oracle -e ORACLE_PASSWORD=pass -p 1521:1521 -d gvenzl/oracle-xe
+-docker search oracle-xe-11g
+-docker image
+-docker run --name my_oracle -d -p 8080:8080 -p 1521:1521 jaspeen/oracle-xe-11g ****
+-비밀번호 패스
+ docker run -e ORACLE_PASSWORD=pass -p 1521:1521 -d gvenzl/oracle-xe
+-로그확인
+docker logs -f fervent_williamson //
+-docker ps
+-docker exec -it oracle sqlplus
+
+-docker 띄우기
+ docker start oracle
+ docker exec -it oracle sqlplus
+ docker ps
+
+/opt/homebrew
+
+SQL> CREATE USER {사용할이름} IDENTIFIED BY {사용할비밀번호};
+SQL> GRANT RESOURCE, CONNECT TO {사용할이름};
+SQL> grant create session, create table, create procedure to {사용할이름};
+SQL> ALTER USER {사용할이름} quota unlimited on USERS;
+
+설정기타----
+"java.configuration.runtimes": [
+  {
+    "name": "JavaSE-1.8",
+    "path": "/path/to/jdk-8",
+  },
+  {
+    "name": "JavaSE-11",
+    "path": "/path/to/jdk-11",
+  },
+  {
+    "name": "JavaSE-17",
+    "path": "/path/to/jdk-17",
+    "default": true
+  },
+]
+>brew install openjdk@17
+For the system Java wrappers to find this JDK, symlink it with
+  sudo ln -sfn /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-17.jdk
+
+openjdk@17 is keg-only, which means it was not symlinked into /opt/homebrew,
+because this is an alternate version of another formula.
+
+If you need to have openjdk@17 first in your PATH, run:
+  echo 'export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"' >> ~/.zshrc
+
+For compilers to find openjdk@17 you may need to set:
+  export CPPFLAGS="-I/opt/homebrew/opt/openjdk@17/include"
+>brew install mvn
+
+---mysql 설치
+1.docker 설치
+  docker run --name mysql-container -e MYSQL_ROOT_PASSWORD=<password> -d -p 3306:3306 mysql:latest
+
+
