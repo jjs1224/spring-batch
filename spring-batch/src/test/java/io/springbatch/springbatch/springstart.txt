@@ -82,9 +82,83 @@ If you need to have openjdk@17 first in your PATH, run:
 For compilers to find openjdk@17 you may need to set:
   export CPPFLAGS="-I/opt/homebrew/opt/openjdk@17/include"
 >brew install mvn
+>brew install openjdk@11
+For the system Java wrappers to find this JDK, symlink it with
+  sudo ln -sfn /opt/homebrew/opt/openjdk@11/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-11.jdk
 
+openjdk@11 is keg-only, which means it was not symlinked into /opt/homebrew,
+because this is an alternate version of another formula.
+
+If you need to have openjdk@11 first in your PATH, run:
+  echo 'export PATH="/opt/homebrew/opt/openjdk@11/bin:$PATH"' >> ~/.zshrc
+
+For compilers to find openjdk@11 you may need to set:
+  export CPPFLAGS="-I/opt/homebrew/opt/openjdk@11/include"
+  
 ---mysql 설치
-1.docker 설치
   docker run --name mysql-container -e MYSQL_ROOT_PASSWORD=<password> -d -p 3306:3306 mysql:latest
+
+--스프링배치 활성화
+@EnableBatchProcessing :스프링배치가 작동하기 위해 선언해야하는 어노테이션
+총 4개의 설정 클래스를 실행시키며 스프링 배치의 모든 초기화 및 실행구성이 이루어짐
+스프링 부트 배치의 자동설정 클래스가 실행됨으로 빈으로 등록된 모든 Job을 검색해 초기화와 동시에 Job을 수행하도록 구성.
+
+--스프링배치 초기화 설정 클래스
+1. BatchAutoConfiguration
+  : 스프링 배치가 초기화될대 자동으로 실행되는 설정클래스
+  : Job을 수행하는 JobLanucherApplicationRunner빈을 생성
+2. SimpleBatchConfiguration
+  : JobBuilderFactory 와 StepBuilderFactory생성
+  : spring batch 주요구성 요소 생성 - 프록시 객체로 생성됨
+3. BatchConfigurerConfiguration
+  - BasicBatchConfigurer
+    : SimpleBatchConfiguration에서 생성한 프록시 객체의 실제 대상 객체를 생성하는 클래스
+    : 빈으로 의존성 주입받아 주요 객체들을 참조해서 사용할수 있다.
+    
+  - JpaBatchConfigurer
+    : JPA 관련 객체를 생성하는 설정클래스
+
+  - 사용자 정의 BatchConfigurer interface를 구현하여 사용할 수 있다.
+
+  @EnableBatchProcessing -> SimpleBatchConfiguration -> BatchConfigurerConfiguration -> BatchAutoConfiguration
+
+2.2 스프링 배치 시작
+- @configuration선언
+ : 하나의 배치 Job을 정의하고 빈설정
+- JobBuilderFactory : Job을 생성하고 빌더 factory 
+- StepBuilderFactory : Step을 생성하는 빌더 factory
+- Job : helloJob이름으로 생성
+- Step : helloStep 이름으로 step 생성
+- tasklet :Step 안에서 단일 태스크로 수행하고 로직 구현
+
+2.3 DB스키마생성
+ - DB와 연동할 경우 필수적으로 메타 테이블 생성필요.
+ - DB스키마 제공
+   파일 위치 : /org/springframework/batdh/core/schema-*.sql 
+   DB유형별로 제공
+ - 자동생성 : spring.batch.jdbc.initialize-schema 설정
+    - ALWAYS : 스크립트 항상 실행. RDBMS 설정되어 있는 경우 내장DB보다 우선적 실행
+    - EMBEEDDED : 내장DB일 때만 실행. 스키마 자동생성. default 
+    - NAVER : 스크립트 항상실행안함. 내장DB일 경우 스크립트 생성이 안되기 때문에 오류발생. 운영세서 수동으로 스크립트 생성후 설정권장.
+    https://docs.spring.io/spring-batch/docs/3.0.x/reference/html/metaDataSchema.html 참조
+
+ -job table
+  -BATCH_JOB_INSTANCE
+  :job 이 실행될때 jobinstance 정보 저장, job_name/job_key로 하나의 데이터 저장
+  :동일한 job_name과 job_key 중복 불가
+  -BATCH_JOB_EXECUTION
+   :job의 실행정보 저장, job 생성, 시작,종료시간 ,실행상태, 메시지 관리
+  - BATCH_JOB_EXECUTION_PARAMS
+   :job과 실행되는 jobParamter정보 저장
+  - BATCH_JOB_EXECUTION_CONTEXT
+   : job의 실행동안 여러가지 상태정보, 공유데이터 직렬화(json형식) 저장
+   : step간 서로 공유가능
+ - step 관련 테이블
+   - BATCH_STEP_EXECUTION
+     : step의 실행정보 저장, 생성/시작/종료시간/실행상태/메시지 관리
+   - BATCH_STEP_EXECUTION_CONTEXT
+     : step 실행동안 여러가지 상태정보, 공유데이터 직렬화(json형식) 저장.
+     : step별로 저장되며 step간 서로 공유할수 없음.
+
 
 
