@@ -160,5 +160,56 @@ For compilers to find openjdk@11 you may need to set:
      : step 실행동안 여러가지 상태정보, 공유데이터 직렬화(json형식) 저장.
      : step별로 저장되며 step간 서로 공유할수 없음.
 
+   * Step
+   step class : Batch job을 구성하는 독립적인 하나의 단계, 실제 배치 처리를 정의.
+        단순 단일 task 외 입력, 처리 , 출력과 관련된 비지니스 로직 구현
+        배치작업을 어떻게 구성하고 실행할 것인지 job의 세부작없을 task기반으로 설정하고 명세해놓은 객체
+        모든 job은 하나 이상의 step으로 구성
+    기본구현체
+      - TaskletStep : 가장 기본이 되는 class. Tasklet타입의 구현체 제어
+      - PartitionStep : 멀티 스레드 방식으로 step 을 여러개로 분리해서 실행.
+      - JobStep : step내에서 job을 실행하도록 함.
+      - FlowStep : step내에서 flow를 실행하도록 한다.
+    * StepExecution
+     :step에 대한 한번의 시도를 의미하는 객체. step실행중에 발생한 정보저장 객체.
+     :매번시도 때마다 생성되어 각 step별로 생성.
+     :job이 재시작되어도 이미 성공한 step은 재실행되지 않는다. 옵션에 따라 재실행하게 가능함.
+     :이전단계에서 step이 실패해서 현재 step을 실행하지  않았다면 stepExecution을 생성하지 않음.
+     step이 실제로 시작되었을때만 stepExecution을 생성.
+     : step의 stepExecution이 모두 정상적으로 완료되어야 jobExecution이 생성.
+     : 실패시 jobExecuion은 실패임.
+    - BATCH_STEP_EXECUTION 테이블과 매핑
+      : jobExecution : StepExecution= 1:M 의 관계
+      : 하나의 job에 여러개의 step으로 구성한 경우 각 stepExecution은 하나의 jobExecution을 부모로 가짐.
+    * StepContriution
+    : chunk process 변경사항을 버퍼링한 후 stepExecution 상태를 업데이트하는 도메인 객체.
+    : chunk 커밋 직전에 stepExecution의 apply method 를 호출하여 상태 업데이트
+    : ExitStatus의 기본 종료코드 외 사용자 정의종료코드를 생성해서 적용할 수 있음.
+    : 속성 - readCount,  writeCount ,filterCount, parentSkipCount, readSkipCount, writeSkipCount,
+    processSkipCount, ExitStatus, StepExecution
+* ExecutionContext
+ : framework에서 유지 및 관리하는 키/값을 map으로 stepExecution/jobExecution 객체의 상태를 공유하는 객체
+  Map<String,Object> map = new ConcurrentHashMap
+  step간 상태 서로 공유하지않음. job의 step간 공유함. job간 상태 서로 공유하지 않음.
+
+* JobRepository
+ : 배치 작업 중의 정보를 저장하는 저장소 역할
+ jobLauncher, Job, step 구현체 내부에서 CRUD 기능을 처리함.
+@EnableBatchProcessing 선언
+BatchConfigurer interface 구현, BasicBatchConfigurer 상속해서 jobRepository 설정
+ -JDBC 방식 설정 : JobRepositoryFactoryBean
+ -In Memory방식 설정 : MapJobRepositoryFactoryBean
+  성능등의 이유로 db에 저장하지 않을때, 보통 test나 proptotype 의 빠른 개발이 필요할때.
+* JobLauncher
+ : 배치 job을 실행시키는 역할. job, jobparamters 인자로 받음.
+  별도로 bean 생성을 넣지 않아도 구동시 자동생성함.
+  - 동기적 실행
+   : taskExecutor를 SyncTaskExecutor 설정한 경우(기본)
+    스케줄러에 의한 배치처리에 적합함. 배치처리시간이 길어도 상관없음.
+  -비동기적 실행
+   : taksExecutor가 SimpleAsyncTaskExecutor로 설정한경우.
+     http요청에 의한 배치처리에 적합.-배치처리 시간이 길 경우 응답이 늦어지지않도록 함.
+     응답값 ExitStatus.UNKNOWN
+
 
 
